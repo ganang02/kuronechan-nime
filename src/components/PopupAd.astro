@@ -1,0 +1,73 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<style>
+  .popup {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 20px;
+    z-index: 1000;
+    display: none; /* Initially hidden */
+  }
+  .popup.active {
+    display: block; /* Show when active */
+  }
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none; /* Initially hidden */
+  }
+  .overlay.active {
+    display: block; /* Show when active */
+  }
+</style>
+
+<Layout>
+  <div class="overlay" id="overlay"></div>
+  <div class="popup" id="popupAd">
+    <h2>Notification</h2>
+    <p>Check out our latest updates!</p>
+    <a href="https://example.com" target="_blank">Learn More</a>
+    <button onclick="closePopup()">Close</button>
+  </div>
+</Layout>
+
+<script>
+  function showPopup() {
+    const popup = document.getElementById('popupAd');
+    const overlay = document.getElementById('overlay');
+    console.log("Attempting to show popup");
+    if (popup && overlay) {
+      popup.classList.add('active');
+      overlay.classList.add('active');
+      console.log("Popup shown");
+    } else {
+      console.error("Popup or overlay not found");
+    }
+  }
+
+  function closePopup() {
+    const popup = document.getElementById('popupAd');
+    const overlay = document.getElementById('overlay');
+    console.log("Attempting to close popup");
+    if (popup && overlay) {
+      popup.classList.remove('active');
+      overlay.classList.remove('active');
+      console.log("Popup closed");
+    } else {
+      console.error("Popup or overlay not found");
+    }
+  }
+
+  // Show the popup after a delay
+  setTimeout(showPopup, 2000); // Show after 2 seconds
+</script>
