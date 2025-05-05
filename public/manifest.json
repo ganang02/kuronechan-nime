@@ -1,0 +1,21 @@
+{
+  "name": "Tugas X.1",
+  "short_name": "Tugas X.1",
+  "description": "Aplikasi manajemen tugas sekolah untuk kelas X.1",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff6600",
+  "icons": [
+    {
+      "src": "/notification-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/notification-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
