@@ -1,7 +1,7 @@
 import TaskList from "@/components/task-list"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { PlusCircle, Bell } from "lucide-react"
+import { PlusCircle, Bell, Mail } from "lucide-react"
 
 export default function Home() {
   return (
@@ -14,7 +14,13 @@ export default function Home() {
               Tugas X.1
             </h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link href="/subscribe">
+              <Button variant="outline" className="flex items-center gap-2 group">
+                <Mail className="h-4 w-4 group-hover:animate-pulse text-primary" />
+                Berlangganan Email
+              </Button>
+            </Link>
             <Link href="/enable-notifications">
               <Button variant="outline" className="flex items-center gap-2 group">
                 <Bell className="h-4 w-4 group-hover:animate-bell text-primary" />

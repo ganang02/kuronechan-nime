@@ -1,4 +1,5 @@
 import { getTasks } from "./tasks"
+import { sendTaskReminders } from "./subscribers"
 
 export async function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -52,7 +53,7 @@ export function checkNotifications() {
 }
 
 export async function scheduleTaskReminders() {
-  if (typeof window === "undefined" || Notification.permission !== "granted") return
+  if (typeof window === "undefined") return
 
   try {
     // Ambil semua tugas
@@ -111,6 +112,19 @@ export async function scheduleTaskReminders() {
 
     // Periksa notifikasi yang sudah waktunya ditampilkan
     checkNotifications()
+
+    // Kirim notifikasi email untuk tugas H-1
+    // Periksa apakah sudah mengirim email hari ini
+    const lastEmailCheck = localStorage.getItem("lastEmailReminderCheck")
+    const today = new Date().toDateString()
+
+    if (lastEmailCheck !== today && tasksForTomorrow.length > 0) {
+      // Kirim email pengingat
+      await sendTaskReminders()
+
+      // Simpan tanggal pengiriman terakhir
+      localStorage.setItem("lastEmailReminderCheck", today)
+    }
   } catch (error) {
     console.error("Error scheduling task reminders:", error)
   }

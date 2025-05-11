@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { X, Upload, ArrowLeft, BookOpen, Clock, FileText } from "lucide-react"
+import { X, Upload, ArrowLeft, BookOpen, Clock, FileText, LinkIcon } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -26,6 +26,7 @@ export default function AddTaskPage() {
   const [subject, setSubject] = useState("")
   const [description, setDescription] = useState("")
   const [date, setDate] = useState<Date | undefined>(undefined)
+  const [submissionLink, setSubmissionLink] = useState("")
   const [images, setImages] = useState<string[]>([])
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
@@ -80,6 +81,7 @@ export default function AddTaskPage() {
           subject,
           description: description || null,
           due_date: date!.toISOString(),
+          submission_link: submissionLink || null,
         },
         images,
       )
@@ -199,6 +201,24 @@ export default function AddTaskPage() {
                   <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
                 </PopoverContent>
               </Popover>
+            </div>
+
+            <div className="grid gap-2 animate-fade-in" style={{ animationDelay: "0.45s" }}>
+              <Label htmlFor="submissionLink" className="flex items-center gap-2">
+                <div className="h-1 w-1 rounded-full bg-primary"></div>
+                Link Pengumpulan (Opsional)
+              </Label>
+              <div className="relative">
+                <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="submissionLink"
+                  type="url"
+                  placeholder="https://classroom.google.com/..."
+                  value={submissionLink}
+                  onChange={(e) => setSubmissionLink(e.target.value)}
+                  className="pl-10 border-primary/20 focus-visible:ring-primary"
+                />
+              </div>
             </div>
 
             <div className="grid gap-2 animate-fade-in" style={{ animationDelay: "0.5s" }}>

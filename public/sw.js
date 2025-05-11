@@ -1,13 +1,15 @@
 // Service Worker for PWA and notifications
-const CACHE_NAME = "task-manager-v1"
+const CACHE_NAME = "task-manager-v2" // Perbarui versi cache
 
 // Files to cache
-const urlsToCache = ["/", "/add-task", "/enable-notifications", "/notification-icon.png"]
+const urlsToCache = ["/", "/add-task", "/enable-notifications", "/subscribe", "/notification-icon.png"]
 
 // Install event - cache assets
 self.addEventListener("install", (event) => {
+  console.log("Service Worker installing...")
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log("Service Worker caching files...")
       return cache.addAll(urlsToCache)
     }),
   )
@@ -15,6 +17,7 @@ self.addEventListener("install", (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
+  console.log("Service Worker activating...")
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -23,6 +26,7 @@ self.addEventListener("activate", (event) => {
             return cacheName !== CACHE_NAME
           })
           .map((cacheName) => {
+            console.log("Service Worker removing old cache:", cacheName)
             return caches.delete(cacheName)
           }),
       )
@@ -44,6 +48,7 @@ self.addEventListener("fetch", (event) => {
 
 // Push notification event
 self.addEventListener("push", (event) => {
+  console.log("Push notification received:", event)
   let data = {}
   if (event.data) {
     try {
@@ -66,11 +71,16 @@ self.addEventListener("push", (event) => {
     },
   }
 
-  event.waitUntil(self.registration.showNotification(data.title || "Notifikasi Tugas", options))
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Notifikasi Tugas", options).then(() => {
+      console.log("Notification shown successfully")
+    }),
+  )
 })
 
 // Notification click event
 self.addEventListener("notificationclick", (event) => {
+  console.log("Notification clicked:", event)
   event.notification.close()
 
   event.waitUntil(

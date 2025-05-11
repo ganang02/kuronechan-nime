@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "./supabase"
 import type { Task } from "./types"
+import { sendNewTaskNotificationToAll } from "./subscribers"
 
 export async function getTasks(): Promise<Task[]> {
   const supabase = getSupabaseClient()
@@ -29,7 +30,7 @@ export async function getTasks(): Promise<Task[]> {
   return tasksWithImages
 }
 
-// Perbarui fungsi addTask untuk menangani created_by dengan benar
+// Perbarui fungsi addTask untuk mengirim notifikasi email
 export async function addTask(
   task: Omit<Task, "id" | "created_at" | "updated_at">,
   images: string[],
@@ -45,6 +46,7 @@ export async function addTask(
         subject: task.subject,
         description: task.description,
         due_date: task.due_date,
+        submission_link: task.submission_link,
         // Jangan sertakan created_by karena kita belum memiliki autentikasi
       },
     ])
@@ -69,6 +71,13 @@ export async function addTask(
       console.error("Error adding task images:", imageError)
       // Tetap lanjutkan meskipun ada error pada gambar
     }
+  }
+
+  // Kirim notifikasi email untuk tugas baru (asynchronous)
+  if (newTask) {
+    sendNewTaskNotificationToAll(newTask).catch((err) => {
+      console.error("Error sending email notifications:", err)
+    })
   }
 
   return { success: true, task: newTask }

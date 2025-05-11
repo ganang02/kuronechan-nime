@@ -7,6 +7,7 @@ export interface Task {
   created_at: string
   updated_at: string
   created_by?: string | null
+  submission_link?: string | null
   images?: TaskImage[]
 }
 
@@ -23,6 +24,15 @@ export interface User {
   created_at: string
   updated_at: string
   is_admin: boolean
+}
+
+export interface Subscriber {
+  id: string
+  email: string
+  created_at: string
+  verified: boolean
+  verification_token?: string
+  last_notified?: string
 }
 
 export interface ScheduledNotification {

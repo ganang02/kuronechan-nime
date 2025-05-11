@@ -3,17 +3,27 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bell, CheckCircle, XCircle, ArrowLeft } from "lucide-react"
+import { Bell, CheckCircle, XCircle, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { registerServiceWorker } from "@/lib/notification"
 
 export default function EnableNotificationsPage() {
   const [notificationStatus, setNotificationStatus] = useState<"default" | "granted" | "denied">("default")
   const [isRegistering, setIsRegistering] = useState(false)
+  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null)
 
   useEffect(() => {
     if (typeof Notification !== "undefined") {
       setNotificationStatus(Notification.permission as "default" | "granted" | "denied")
+    }
+
+    // Cek apakah service worker sudah terdaftar
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration) {
+          setSwRegistration(registration)
+        }
+      })
     }
   }, [])
 
@@ -22,7 +32,8 @@ export default function EnableNotificationsPage() {
 
     try {
       // Register service worker first
-      await registerServiceWorker()
+      const registration = await registerServiceWorker()
+      setSwRegistration(registration)
 
       // Then request permission
       const permission = await Notification.requestPermission()
@@ -30,15 +41,31 @@ export default function EnableNotificationsPage() {
 
       // If granted, send a test notification
       if (permission === "granted") {
-        new Notification("Notifikasi Berhasil Diaktifkan", {
+        // Gunakan registration.showNotification untuk menampilkan notifikasi
+        await registration.showNotification("Notifikasi Berhasil Diaktifkan", {
           body: "Anda akan menerima notifikasi untuk tugas-tugas yang akan datang.",
           icon: "/notification-icon.png",
+          vibrate: [100, 50, 100],
         })
       }
     } catch (error) {
       console.error("Error requesting notification permission:", error)
     } finally {
       setIsRegistering(false)
+    }
+  }
+
+  const sendTestNotification = async () => {
+    if (!swRegistration) return
+
+    try {
+      await swRegistration.showNotification("Notifikasi Uji Coba", {
+        body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
+        icon: "/notification-icon.png",
+        vibrate: [100, 50, 100],
+      })
+    } catch (error) {
+      console.error("Error sending test notification:", error)
     }
   }
 
@@ -63,9 +90,24 @@ export default function EnableNotificationsPage() {
 
         <CardContent>
           {notificationStatus === "granted" ? (
-            <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-md animate-fade-in">
-              <CheckCircle className="h-5 w-5" />
-              <p>Notifikasi sudah diaktifkan</p>
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-md">
+                <CheckCircle className="h-5 w-5" />
+                <p>Notifikasi sudah diaktifkan</p>
+              </div>
+
+              <div className="mt-4">
+                <Button
+                  onClick={sendTestNotification}
+                  variant="outline"
+                  className="w-full border-primary/20 hover:bg-primary/10"
+                >
+                  Kirim Notifikasi Uji Coba
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Klik tombol di atas untuk menguji apakah notifikasi berfungsi dengan baik
+                </p>
+              </div>
             </div>
           ) : notificationStatus === "denied" ? (
             <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-md animate-fade-in">
@@ -104,11 +146,7 @@ export default function EnableNotificationsPage() {
             >
               {isRegistering ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 rounded-full bg-white loading-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-white loading-dot"></div>
-                    <div className="w-2 h-2 rounded-full bg-white loading-dot"></div>
-                  </div>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Memproses...</span>
                 </div>
               ) : (
