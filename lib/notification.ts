@@ -58,25 +58,69 @@ export async function showNotification(title: string, options: NotificationOptio
     }
 
     // Coba tampilkan notifikasi menggunakan service worker jika tersedia
-    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
-      const registration = await navigator.serviceWorker.ready
-      console.log("Showing notification via service worker")
-      await registration.showNotification(title, {
-        icon: "/notification-icon.png",
-        badge: "/notification-icon.png",
-        vibrate: [100, 50, 100],
-        ...options,
-      })
-      return true
-    } else {
-      // Fallback ke notifikasi standar jika service worker tidak tersedia
-      console.log("Showing notification via standard API")
-      new Notification(title, {
+    if ("serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        console.log("Showing notification via service worker")
+
+        // Gunakan MessageChannel untuk berkomunikasi dengan service worker
+        const messageChannel = new MessageChannel()
+
+        // Buat promise untuk menunggu respons
+        const notificationPromise = new Promise((resolve, reject) => {
+          messageChannel.port1.onmessage = (event) => {
+            if (event.data && event.data.success) {
+              resolve(true)
+            } else {
+              reject(new Error(event.data?.error || "Failed to show notification"))
+            }
+          }
+        })
+
+        // Kirim pesan ke service worker untuk menampilkan notifikasi
+        registration.active?.postMessage(
+          {
+            type: "SHOW_NOTIFICATION",
+            title,
+            options: {
+              ...options,
+              icon: "/notification-icon.png",
+              badge: "/notification-icon.png",
+              vibrate: [100, 50, 100],
+            },
+          },
+          [messageChannel.port2],
+        )
+
+        // Tunggu respons atau timeout setelah 2 detik
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Notification timeout")), 2000)
+        })
+
+        await Promise.race([notificationPromise, timeoutPromise])
+        return true
+      } catch (error) {
+        console.error("Error showing notification via service worker:", error)
+        // Fallback ke notifikasi standar
+      }
+    }
+
+    // Fallback ke notifikasi standar jika service worker tidak tersedia atau gagal
+    console.log("Showing notification via standard API")
+    // PENTING: Kita tidak bisa membuat instance Notification secara langsung di sini
+    // Kita harus menggunakan API yang benar
+
+    // Gunakan API yang benar untuk menampilkan notifikasi
+    if (window.Notification && window.Notification.permission === "granted") {
+      // Gunakan constructor dengan benar
+      new window.Notification(title, {
         icon: "/notification-icon.png",
         ...options,
       })
       return true
     }
+
+    return false
   } catch (error) {
     console.error("Error showing notification:", error)
     return false

@@ -94,13 +94,15 @@ export default function EnableNotificationsPage() {
       // If granted, send a test notification
       if (permission === "granted") {
         console.log("Permission granted, showing notification...")
-        // Gunakan registration.showNotification untuk menampilkan notifikasi
-        await registration.showNotification("Notifikasi Berhasil Diaktifkan", {
-          body: "Anda akan menerima notifikasi untuk tugas-tugas yang akan datang.",
-          icon: "/notification-icon.png",
-          vibrate: [100, 50, 100],
-        })
-        console.log("Notification should be shown now")
+        try {
+          // Gunakan showNotification untuk menampilkan notifikasi
+          await showNotification("Notifikasi Berhasil Diaktifkan", {
+            body: "Anda akan menerima notifikasi untuk tugas-tugas yang akan datang.",
+          })
+          console.log("Notification should be shown now")
+        } catch (error) {
+          console.error("Error showing notification:", error)
+        }
       }
     } catch (error) {
       console.error("Error in notification setup:", error)
@@ -126,23 +128,10 @@ export default function EnableNotificationsPage() {
         body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
       })
 
-      if (!result) {
-        // Metode 2: Mencoba menggunakan service worker registration langsung
-        if (swRegistration) {
-          console.log("Trying with service worker registration directly...")
-          await swRegistration.showNotification("Notifikasi Uji Coba", {
-            body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
-            icon: "/notification-icon.png",
-            vibrate: [100, 50, 100],
-          })
-        } else {
-          // Metode 3: Fallback ke Notification API standar
-          console.log("Falling back to standard Notification API...")
-          new Notification("Notifikasi Uji Coba", {
-            body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
-            icon: "/notification-icon.png",
-          })
-        }
+      if (result) {
+        console.log("Notification sent successfully")
+      } else {
+        console.log("Failed to send notification")
       }
 
       toast({
@@ -203,6 +192,47 @@ export default function EnableNotificationsPage() {
     }
   }
 
+  // Fungsi untuk menampilkan notifikasi langsung tanpa service worker
+  const sendDirectNotification = () => {
+    try {
+      if (!("Notification" in window)) {
+        toast({
+          title: "Error",
+          description: "Browser Anda tidak mendukung notifikasi",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (Notification.permission !== "granted") {
+        toast({
+          title: "Error",
+          description: "Izin notifikasi belum diberikan",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Gunakan constructor dengan benar
+      new Notification("Notifikasi Langsung", {
+        body: "Ini adalah notifikasi langsung tanpa service worker",
+        icon: "/notification-icon.png",
+      })
+
+      toast({
+        title: "Notifikasi Terkirim",
+        description: "Notifikasi langsung telah dikirim",
+      })
+    } catch (error) {
+      console.error("Error sending direct notification:", error)
+      toast({
+        title: "Error",
+        description: `Gagal mengirim notifikasi langsung: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 page-transition">
       <Link
@@ -242,7 +272,7 @@ export default function EnableNotificationsPage() {
                 <p>Notifikasi browser sudah diaktifkan</p>
               </div>
 
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
                 <Button
                   onClick={sendTestNotification}
                   variant="outline"
@@ -257,10 +287,22 @@ export default function EnableNotificationsPage() {
                   ) : (
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4" />
-                      <span>Kirim Notifikasi Uji Coba</span>
+                      <span>Kirim Notifikasi via Service Worker</span>
                     </div>
                   )}
                 </Button>
+
+                <Button
+                  onClick={sendDirectNotification}
+                  variant="outline"
+                  className="w-full border-primary/20 hover:bg-primary/10"
+                >
+                  <div className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    <span>Kirim Notifikasi Langsung</span>
+                  </div>
+                </Button>
+
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   Klik tombol di atas untuk menguji apakah notifikasi browser berfungsi dengan baik
                 </p>
