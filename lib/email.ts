@@ -2,6 +2,7 @@ import {
   sendVerificationEmailAction,
   sendNewTaskNotificationAction,
   sendTaskReminderNotificationAction,
+  sendTestEmailAction,
 } from "./email-actions"
 
 // Fungsi wrapper untuk mengirim email verifikasi
@@ -35,4 +36,9 @@ export async function sendTaskReminderNotification(
   }>,
 ): Promise<{ success: boolean; error?: any }> {
   return sendTaskReminderNotificationAction(email, tasks)
+}
+
+// Fungsi wrapper untuk mengirim email uji coba
+export async function sendTestEmail(email: string): Promise<{ success: boolean; error?: any }> {
+  return sendTestEmailAction(email)
 }

@@ -167,3 +167,42 @@ export async function sendTaskReminderNotificationAction(
     return { success: false, error }
   }
 }
+
+// Server action untuk mengirim email uji coba
+export async function sendTestEmailAction(email: string): Promise<{ success: boolean; error?: any }> {
+  try {
+    // Periksa apakah konfigurasi EmailJS tersedia
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_NEW_TASK_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+      console.error("EmailJS configuration is missing")
+      return { success: false, error: "Email service configuration is missing" }
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || ""
+
+    const response = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_NEW_TASK_TEMPLATE_ID, {
+      to_email: email,
+      task_title: "Email Uji Coba - Tugas X.1",
+      task_subject: "Uji Coba Notifikasi",
+      task_due_date: new Date().toLocaleDateString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      task_description: "Ini adalah email uji coba untuk memastikan sistem notifikasi email berfungsi dengan baik.",
+      task_submission_link: appUrl,
+      app_url: appUrl,
+      app_name: "Tugas X.1",
+      current_year: new Date().getFullYear(),
+    })
+
+    if (response.status === 200) {
+      return { success: true }
+    } else {
+      return { success: false, error: `Status: ${response.status}, Text: ${response.text}` }
+    }
+  } catch (error) {
+    console.error("Error sending test email:", error)
+    return { success: false, error }
+  }
+}

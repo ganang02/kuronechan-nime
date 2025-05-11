@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Mail, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, CheckCircle, AlertCircle, Loader2, Send } from "lucide-react"
 import Link from "next/link"
 import { addSubscriber, sendSubscriberVerificationEmail } from "@/lib/subscribers"
+import { sendTestEmail } from "@/lib/email"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SubscribePage() {
@@ -18,6 +19,7 @@ export default function SubscribePage() {
   const { toast } = useToast()
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSendingTest, setIsSendingTest] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
 
@@ -66,6 +68,35 @@ export default function SubscribePage() {
       setError("Terjadi kesalahan saat mendaftarkan email")
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Silakan masukkan alamat email yang valid")
+      return
+    }
+
+    setIsSendingTest(true)
+    setError("")
+
+    try {
+      const result = await sendTestEmail(email)
+
+      if (result.success) {
+        toast({
+          title: "Email Uji Coba Terkirim",
+          description: "Silakan periksa kotak masuk email Anda.",
+        })
+      } else {
+        console.error("Error sending test email:", result.error)
+        setError(`Gagal mengirim email uji coba: ${result.error?.message || "Silakan coba lagi."}`)
+      }
+    } catch (err) {
+      console.error("Error sending test email:", err)
+      setError("Terjadi kesalahan saat mengirim email uji coba")
+    } finally {
+      setIsSendingTest(false)
     }
   }
 
@@ -142,13 +173,35 @@ export default function SubscribePage() {
                   <li>Informasi penting lainnya terkait tugas</li>
                 </ul>
               </div>
+
+              <div className="flex justify-between items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTest || isSubmitting}
+                  className="flex items-center gap-2"
+                >
+                  {isSendingTest ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Mengirim...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      <span>Kirim Email Uji Coba</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
 
             <CardFooter>
               <Button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/90 shadow-lg transition-all hover:shadow-xl"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSendingTest}
               >
                 {isSubmitting ? (
                   <div className="flex items-center gap-2">
