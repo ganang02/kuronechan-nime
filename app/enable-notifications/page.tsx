@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bell, CheckCircle, XCircle, ArrowLeft, Loader2, Mail } from "lucide-react"
+import { Bell, CheckCircle, XCircle, ArrowLeft, Loader2, Mail, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { registerServiceWorker } from "@/lib/notification"
+import { registerServiceWorker, showNotification } from "@/lib/notification"
 import { sendTestEmail } from "@/lib/email"
 import { useToast } from "@/hooks/use-toast"
 
@@ -13,23 +13,60 @@ export default function EnableNotificationsPage() {
   const [notificationStatus, setNotificationStatus] = useState<"default" | "granted" | "denied">("default")
   const [isRegistering, setIsRegistering] = useState(false)
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [isSendingNotification, setIsSendingNotification] = useState(false)
   const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null)
+  const [swStatus, setSwStatus] = useState<string>("Checking service worker status...")
   const [email, setEmail] = useState("")
   const { toast } = useToast()
+
+  // Fungsi untuk memeriksa status service worker
+  const checkServiceWorker = async () => {
+    try {
+      if (!("serviceWorker" in navigator)) {
+        setSwStatus("Service Worker tidak didukung di browser ini")
+        return
+      }
+
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      if (registrations.length === 0) {
+        setSwStatus("Service Worker belum terdaftar")
+        return
+      }
+
+      const activeRegistration = registrations.find((r) => r.active)
+      if (!activeRegistration) {
+        setSwStatus("Service Worker terdaftar tetapi tidak aktif")
+        return
+      }
+
+      setSwRegistration(activeRegistration)
+      setSwStatus("Service Worker aktif dan siap")
+
+      // Coba kirim pesan ke service worker untuk memastikan komunikasi berfungsi
+      if (activeRegistration.active) {
+        const messageChannel = new MessageChannel()
+        messageChannel.port1.onmessage = (event) => {
+          console.log("Response from service worker:", event.data)
+          if (event.data && event.data.type === "PONG") {
+            setSwStatus("Service Worker merespons: " + event.data.status)
+          }
+        }
+
+        activeRegistration.active.postMessage({ type: "PING" }, [messageChannel.port2])
+      }
+    } catch (error) {
+      console.error("Error checking service worker:", error)
+      setSwStatus(`Error: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 
   useEffect(() => {
     if (typeof Notification !== "undefined") {
       setNotificationStatus(Notification.permission as "default" | "granted" | "denied")
     }
 
-    // Cek apakah service worker sudah terdaftar
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        if (registration) {
-          setSwRegistration(registration)
-        }
-      })
-    }
+    // Periksa status service worker saat komponen dimuat
+    checkServiceWorker()
 
     // Coba ambil email dari localStorage jika ada
     const savedEmail = localStorage.getItem("userEmail")
@@ -40,43 +77,87 @@ export default function EnableNotificationsPage() {
 
   const requestNotificationPermission = async () => {
     setIsRegistering(true)
+    setSwStatus("Memulai pendaftaran Service Worker...")
 
     try {
       // Register service worker first
       const registration = await registerServiceWorker()
       setSwRegistration(registration)
+      setSwStatus("Service Worker berhasil terdaftar dan aktif")
 
       // Then request permission
+      console.log("Requesting notification permission...")
       const permission = await Notification.requestPermission()
+      console.log("Notification permission:", permission)
       setNotificationStatus(permission)
 
       // If granted, send a test notification
       if (permission === "granted") {
+        console.log("Permission granted, showing notification...")
         // Gunakan registration.showNotification untuk menampilkan notifikasi
         await registration.showNotification("Notifikasi Berhasil Diaktifkan", {
           body: "Anda akan menerima notifikasi untuk tugas-tugas yang akan datang.",
           icon: "/notification-icon.png",
           vibrate: [100, 50, 100],
         })
+        console.log("Notification should be shown now")
       }
     } catch (error) {
-      console.error("Error requesting notification permission:", error)
+      console.error("Error in notification setup:", error)
+      setSwStatus(`Error: ${error instanceof Error ? error.message : String(error)}`)
+      toast({
+        title: "Error",
+        description: `Gagal mengaktifkan notifikasi: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
     } finally {
       setIsRegistering(false)
     }
   }
 
   const sendTestNotification = async () => {
-    if (!swRegistration) return
+    setIsSendingNotification(true)
 
     try {
-      await swRegistration.showNotification("Notifikasi Uji Coba", {
+      console.log("Attempting to send test notification...")
+
+      // Metode 1: Menggunakan fungsi showNotification
+      const result = await showNotification("Notifikasi Uji Coba", {
         body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
-        icon: "/notification-icon.png",
-        vibrate: [100, 50, 100],
+      })
+
+      if (!result) {
+        // Metode 2: Mencoba menggunakan service worker registration langsung
+        if (swRegistration) {
+          console.log("Trying with service worker registration directly...")
+          await swRegistration.showNotification("Notifikasi Uji Coba", {
+            body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
+            icon: "/notification-icon.png",
+            vibrate: [100, 50, 100],
+          })
+        } else {
+          // Metode 3: Fallback ke Notification API standar
+          console.log("Falling back to standard Notification API...")
+          new Notification("Notifikasi Uji Coba", {
+            body: "Ini adalah notifikasi uji coba. Jika Anda melihat ini, notifikasi berfungsi dengan baik!",
+            icon: "/notification-icon.png",
+          })
+        }
+      }
+
+      toast({
+        title: "Notifikasi Terkirim",
+        description: "Notifikasi uji coba telah dikirim. Periksa notifikasi browser Anda.",
       })
     } catch (error) {
       console.error("Error sending test notification:", error)
+      toast({
+        title: "Error",
+        description: `Gagal mengirim notifikasi: ${error instanceof Error ? error.message : String(error)}`,
+        variant: "destructive",
+      })
+    } finally {
+      setIsSendingNotification(false)
     }
   }
 
@@ -142,6 +223,18 @@ export default function EnableNotificationsPage() {
         </CardHeader>
 
         <CardContent>
+          {/* Status Service Worker */}
+          <div className="mb-4 p-3 bg-accent rounded-md text-sm">
+            <p className="font-medium flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+              Status Service Worker:
+            </p>
+            <p className="mt-1 text-muted-foreground">{swStatus}</p>
+            <Button variant="outline" size="sm" className="mt-2 text-xs" onClick={checkServiceWorker}>
+              Periksa Ulang
+            </Button>
+          </div>
+
           {notificationStatus === "granted" ? (
             <div className="space-y-4 animate-fade-in">
               <div className="flex items-center gap-2 text-green-600 bg-green-50 p-4 rounded-md">
@@ -154,8 +247,19 @@ export default function EnableNotificationsPage() {
                   onClick={sendTestNotification}
                   variant="outline"
                   className="w-full border-primary/20 hover:bg-primary/10"
+                  disabled={isSendingNotification}
                 >
-                  Kirim Notifikasi Uji Coba
+                  {isSendingNotification ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Mengirim...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4" />
+                      <span>Kirim Notifikasi Uji Coba</span>
+                    </div>
+                  )}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
                   Klik tombol di atas untuk menguji apakah notifikasi browser berfungsi dengan baik
@@ -189,11 +293,26 @@ export default function EnableNotificationsPage() {
               </div>
             </div>
           ) : notificationStatus === "denied" ? (
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-md animate-fade-in">
-              <XCircle className="h-5 w-5" />
-              <p>
-                Notifikasi ditolak. Silakan ubah pengaturan browser Anda untuk mengizinkan notifikasi dari situs ini.
-              </p>
+            <div className="space-y-4 animate-fade-in">
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-4 rounded-md">
+                <XCircle className="h-5 w-5" />
+                <p>
+                  Notifikasi ditolak. Silakan ubah pengaturan browser Anda untuk mengizinkan notifikasi dari situs ini.
+                </p>
+              </div>
+
+              <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-md">
+                <h3 className="text-sm font-medium flex items-center gap-2 text-yellow-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  Cara Mengaktifkan Notifikasi
+                </h3>
+                <ol className="mt-2 text-sm text-yellow-700 list-decimal pl-5 space-y-1">
+                  <li>Klik ikon kunci/info di bilah alamat browser</li>
+                  <li>Cari pengaturan "Notifikasi"</li>
+                  <li>Ubah dari "Blokir" menjadi "Izinkan"</li>
+                  <li>Muat ulang halaman ini</li>
+                </ol>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 animate-fade-in">

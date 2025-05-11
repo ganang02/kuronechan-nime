@@ -1,12 +1,36 @@
 import { getTasks } from "./tasks"
 import { sendTaskReminders } from "./subscribers"
 
+// Fungsi yang diperbarui untuk mendaftarkan service worker
 export async function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     try {
+      // Hapus registrasi service worker yang ada terlebih dahulu untuk memastikan kita mendapatkan versi terbaru
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      for (const registration of registrations) {
+        await registration.unregister()
+        console.log("Service worker unregistered:", registration)
+      }
+
+      // Daftarkan service worker baru
+      console.log("Registering service worker...")
       const registration = await navigator.serviceWorker.register("/sw.js", {
         scope: "/",
       })
+      console.log("Service worker registered successfully:", registration)
+
+      // Tunggu service worker aktif
+      if (registration.installing) {
+        console.log("Service worker installing...")
+        const sw = registration.installing || registration.waiting
+        sw.addEventListener("statechange", (e) => {
+          console.log("Service worker state changed:", sw.state)
+        })
+      }
+
+      // Pastikan service worker sudah aktif sebelum mengembalikannya
+      await navigator.serviceWorker.ready
+      console.log("Service worker is ready")
 
       return registration
     } catch (error) {
@@ -15,6 +39,47 @@ export async function registerServiceWorker() {
     }
   } else {
     throw new Error("Service workers are not supported in this browser")
+  }
+}
+
+// Fungsi untuk menampilkan notifikasi langsung
+export async function showNotification(title: string, options: NotificationOptions = {}) {
+  try {
+    // Periksa apakah browser mendukung notifikasi
+    if (!("Notification" in window)) {
+      console.error("This browser does not support desktop notification")
+      return false
+    }
+
+    // Periksa izin notifikasi
+    if (Notification.permission !== "granted") {
+      console.error("Notification permission not granted")
+      return false
+    }
+
+    // Coba tampilkan notifikasi menggunakan service worker jika tersedia
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      const registration = await navigator.serviceWorker.ready
+      console.log("Showing notification via service worker")
+      await registration.showNotification(title, {
+        icon: "/notification-icon.png",
+        badge: "/notification-icon.png",
+        vibrate: [100, 50, 100],
+        ...options,
+      })
+      return true
+    } else {
+      // Fallback ke notifikasi standar jika service worker tidak tersedia
+      console.log("Showing notification via standard API")
+      new Notification(title, {
+        icon: "/notification-icon.png",
+        ...options,
+      })
+      return true
+    }
+  } catch (error) {
+    console.error("Error showing notification:", error)
+    return false
   }
 }
 
@@ -44,9 +109,8 @@ export function checkNotifications() {
   // Send due notifications
   if (Notification.permission === "granted") {
     dueNotifications.forEach((notification) => {
-      new Notification(notification.title, {
+      showNotification(notification.title, {
         body: notification.body,
-        icon: "/notification-icon.png",
       })
     })
   }
